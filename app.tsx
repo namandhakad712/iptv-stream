@@ -236,7 +236,12 @@ const Icons = {
   Pause: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>,
   Volume: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>,
   Mute: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>,
-  MenuDots: () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+  MenuDots: () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>,
+  Database: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>,
+  Folder: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>,
+  Globe: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>,
+  Type: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>,
+  Radio: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48 0a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>
 };
 
 const VideoPlayer = ({ channel, onStatus, setAvailableQualities, currentQuality, videoRef, setIsPlaying }) => {
@@ -417,7 +422,7 @@ export default function App() {
 
   const [sourceCache, setSourceCache] = useState({});
   const [loadingState, setLoadingState] = useState(false);
-  const [filters, setFilters] = useState(() => getCookie('streamos_filters', { country: '', category: '', search: '' }));
+  const [filters, setFilters] = useState(() => getCookie('streamos_filters', { type: 'all', value: '', search: '' }));
   const [activeChannel, setActiveChannel] = useState(null);
   const [playerStatus, setPlayerStatus] = useState('STANDBY');
   
@@ -508,6 +513,7 @@ export default function App() {
               const countryMatch = line.match(/tvg-country="([^"]*)"/i);
               const categoryMatch = line.match(/group-title="([^"]*)"/i);
               const logoMatch = line.match(/tvg-logo="([^"]*)"/i);
+              const languageMatch = line.match(/tvg-language="([^"]*)"/i);
 
               // Ultra Robust Country Parsing & Normalization
               let rawCode = countryMatch ? countryMatch[1].split(/[,;]/)[0].trim().toUpperCase() : '';
@@ -516,6 +522,7 @@ export default function App() {
 
               const category = categoryMatch ? categoryMatch[1].trim() : '';
               const logo = logoMatch ? logoMatch[1].trim() : null;
+              const language = languageMatch ? languageMatch[1].trim() : '';
 
               currentChan = { 
                 id: `${source.id}-${i}`, 
@@ -523,6 +530,7 @@ export default function App() {
                 name, 
                 countryCode, 
                 category, 
+                language,
                 logo 
               };
             } else if (line && !line.startsWith('#')) {
@@ -556,10 +564,14 @@ export default function App() {
   const meta = useMemo(() => {
     const uniqueCountryCodes = new Set();
     const uniqueCategories = new Set();
+    const uniqueLanguages = new Set();
+    const uniqueSources = new Set();
     
     allChannels.forEach(c => {
       if (c.countryCode) uniqueCountryCodes.add(c.countryCode);
       if (c.category) uniqueCategories.add(c.category);
+      if (c.language) uniqueLanguages.add(c.language);
+      if (c.sourceId) uniqueSources.add(c.sourceId);
     });
 
     const processedCountries = Array.from(uniqueCountryCodes)
@@ -570,18 +582,38 @@ export default function App() {
       .sort((a, b) => a.label.localeCompare(b.label));
 
     const processedCategories = Array.from(uniqueCategories)
+      .filter(c => c)
       .map(c => ({ value: c, label: c }))
       .sort((a, b) => a.label.localeCompare(b.label));
 
-    return { countries: processedCountries, categories: processedCategories };
-  }, [allChannels]);
+    const processedLanguages = Array.from(uniqueLanguages)
+      .filter(l => l)
+      .map(l => ({ value: l, label: l }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    const processedSources = Array.from(uniqueSources)
+      .map(s => {
+        const srcObj = sources.find(src => src.id === s);
+        return { value: s, label: srcObj ? srcObj.label : s };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    return { 
+      countries: processedCountries, 
+      categories: processedCategories,
+      languages: processedLanguages,
+      sources: processedSources
+    };
+  }, [allChannels, sources]);
 
   const filteredChannels = useMemo(() => {
     if (allChannels.length === 0) return [];
     return allChannels.filter(c => {
-      // Exact Match Dropdowns
-      if (filters.country && c.countryCode !== filters.country) return false;
-      if (filters.category && c.category !== filters.category) return false;
+      // Dynamic Match Filters
+      if (filters.type === 'category' && filters.value && c.category !== filters.value) return false;
+      if (filters.type === 'country' && filters.value && c.countryCode !== filters.value) return false;
+      if (filters.type === 'language' && filters.value && c.language !== filters.value) return false;
+      if (filters.type === 'source' && filters.value && c.sourceId !== filters.value) return false;
       
       // Robust Inclusive Search Bar Check
       if (filters.search) {
@@ -757,6 +789,34 @@ export default function App() {
 
   const activeSourceCount = sources.filter(s => s.active).length;
 
+  const typeOptions = [
+    { value: 'all', label: 'All Channels' },
+    { value: 'category', label: 'By Category' },
+    { value: 'language', label: 'By Language' },
+    { value: 'country', label: 'By Country' },
+    { value: 'source', label: 'By Source' }
+  ];
+
+  const getOptionsForType = () => {
+    switch(filters.type) {
+      case 'category': return meta.categories;
+      case 'language': return meta.languages;
+      case 'country': return meta.countries;
+      case 'source': return meta.sources;
+      default: return [];
+    }
+  };
+
+  const getIconForType = (typeVal) => {
+     switch(typeVal) {
+       case 'category': return <Icons.Folder />;
+       case 'language': return <Icons.Type />;
+       case 'country': return <Icons.Globe />;
+       case 'source': return <Icons.Radio />;
+       default: return <Icons.Database />;
+     }
+  };
+
   return (
     <div className={`w-screen h-screen relative bg-black flex ${isIdle ? 'ui-idle' : ''}`}>
       
@@ -892,21 +952,28 @@ export default function App() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-             <SearchableSelect 
-               icon={<span className="text-lg">🌍</span>}
-               placeholder="All Countries"
-               options={meta.countries}
-               value={filters.country}
-               onChange={(val) => setFilters({...filters, country: val})}
-             />
-             <SearchableSelect 
-               icon={<Icons.Filter />}
-               placeholder="All Categories"
-               options={meta.categories}
-               value={filters.category}
-               onChange={(val) => setFilters({...filters, category: val})}
-             />
+          <div className="flex flex-col gap-4">
+             <div className="flex flex-col gap-1.5">
+               <label className="text-[11px] text-[var(--text-muted)] font-medium uppercase tracking-wider pl-1">Playlist Type</label>
+               <SearchableSelect 
+                 icon={getIconForType(filters.type)}
+                 placeholder="Select Type"
+                 options={typeOptions}
+                 value={filters.type}
+                 onChange={(val) => setFilters({...filters, type: val || 'all', value: ''})}
+               />
+             </div>
+             
+             <div className={`flex flex-col gap-1.5 transition-opacity duration-300 ${filters.type === 'all' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+               <label className="text-[11px] text-[var(--text-muted)] font-medium uppercase tracking-wider pl-1">Filter</label>
+               <SearchableSelect 
+                 icon={<Icons.Filter />}
+                 placeholder={filters.type === 'all' ? "All" : "Select Filter..."}
+                 options={filters.type === 'all' ? [{value: '', label: 'All'}] : getOptionsForType()}
+                 value={filters.value}
+                 onChange={(val) => setFilters({...filters, value: val})}
+               />
+             </div>
           </div>
           
           <div className="text-[11px] text-[var(--text-muted)] pt-1 flex justify-between items-center uppercase tracking-wider font-semibold">

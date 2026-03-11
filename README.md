@@ -2,73 +2,82 @@
 
 # 📺 StreamOS
 
-**The ultimate Unified IPTV & Streaming Experience powered by React.**
+**The Ultimate Minimalist, High-Performance IPTV Web Player**
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnamandhakad712%2Fiptv-stream)
+[![Vercel Deploy](https://img.shields.io/badge/Deploy_to-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/new/clone?repository-url=https%3A%2A%2Agithub.com%2Fnamandhakad712%2Fiptv-stream)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![React](https://img.shields.io/badge/React-18+-61dafb?style=for-the-badge&logo=react)](https://reactjs.org/)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v3-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+
+[**Live Demo**](https://iptv-stream-gamma.vercel.app/) (Replace with your Vercel URL) • [**Report Bug**](#)
+
+---
 
 </div>
 
 <br />
 
+StreamOS is a blazing-fast, strictly client-side React + Vite web application built for aggregating, filtering, and streaming `.m3u` and `.m3u8` IPTV playlists. It features a gorgeous glassmorphic UI, dynamic category/language/country filtering, and secure local cookie persistence—all without requiring a backend database!
+
+<br />
+
 ## ✨ Features
 
-- **🌐 Global Unified Playlists**: Over 30,000+ indexed live channels easily accessible out of the box with zero setup.
-- **🎨 Minimalist, Gorgeous UI**: Designed meticulously with glassmorphism, fluid animations, and a distraction-free watch experience.
-- **💾 Session Persistence**: All your settings, volume preferences, and custom sources are saved locally in securely managed cookies. No accounts needed.
-- **🔍 Advanced Search & Filter**: Rapidly filter thousands of channels by category, tag, search string, or specific country with native emoji support.
-- **🛠️ Fully Customizable**: Add your own custom `.m3u` or `.m3u8` playlists easily directly from the user interface.
-- **📸 Snapshot Tool**: One-click stream screenshot capture to save your favorite moments instantly. 
-- **📈 Adaptive Bitrate Streaming**: Advanced `.m3u8` player scaling using `hls.js` automatically optimizes for your network speed.
+- **🚀 Serverless Architecture**: Entirely client-side (PWA ready). No databases to maintain.
+- **🎨 Glassmorphic Interface**: Breathtaking dark-mode UI with smooth micro-animations.
+- **🌍 Dynamic Filtering Array**: Stacked filters auto-update based on source tags (`tvg-country`, `tvg-language`, `group-title`).
+- **💾 Session Persistence**: Safely auto-saves your preferences, volume, layout width, and custom stream sources using secure browser cookies.
+- **🛠 Comprehensive Format Support**: Natively plays HLS streams using `hls.js` with integrated fallback for native Apple devices.
+- **📡 Custom M3U Sources**: Ship with 15+ rich default directories (global & region-specific), plus dynamic adding/removing of your own URLs!
+- **📸 Snapshot Tool**: Integrated canvas rendering module lets you take screenshots of your favorite live TV moments.
 
 <br />
 
-## 🚀 Quick Start
+## ⚡ Quick Start (Local Setup)
 
-Ensure you have [Node.js](https://nodejs.org/) installed on your machine.
+Want to run this beautiful application on your local machine? It takes just seconds.
 
-**1. Clone the repository**
-```bash
-git clone https://github.com/namandhakad712/iptv-stream.git
-cd iptv-stream
-```
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/namandhakad712/iptv-stream.git
+   cd iptv-stream
+   ```
 
-**2. Install Dependencies**
-```bash
-npm install
-```
+2. **Install exactly the locked dependencies:**
+   *(Note: This project leverages Tailwind CSS v3)*
+   ```bash
+   npm install
+   ```
 
-**3. Run the Development Server**
-```bash
-npm run dev
-```
+3. **Spin up the Vite Dev Server:**
+   ```bash
+   npm run dev
+   ```
 
-Your app will be running at `http://localhost:5173`.
-
-<br />
-
-## 🚢 Deployment
-
-StreamOS is fully optimized for **Vercel** deployment with Vite. 
-
-1. Push your repository to GitHub.
-2. Link your Vercel account to the repository.
-3. Vercel automatically detects the Vite config and `vercel.json` included in the root folder, handling the build process seamlessly.
-4. Enjoy your custom global IPTV instance!
-
-Alternatively, you can manually build the project using:
-```bash
-npm run build
-```
+4. **Enjoy the Magic:**
+   Open `http://localhost:5173/` in your browser. 📺
 
 <br />
 
-## 📄 License
+## ☁️ Deployment (Vercel)
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
-*Note: This interface connects to publicly available free-to-air feeds and community-driven IPTV lists. The creators do not host or own any stream content.*
+StreamOS includes a pre-configured `vercel.json` routing configuration out of the box.
 
-<br/>
+1. Create a free account at [Vercel](https://vercel.com).
+2. Click **Add New Project**.
+3. Import this exact repository from your GitHub account.
+4. Leave all settings exactly as default (Vercel auto-detects `Vite`).
+5. Click **Deploy**.
+
+*Within 60 seconds, your own globally distributed IPTV app will be live.*
+
+<br />
+
+## ⚖️ License
+
+Distributed under the MIT License. See `LICENSE` for more information.
 
 <div align="center">
-Made with ❤️ by the community. 
+  <br/>
+  <b>Built with ❤️ by Naman</b>
 </div>

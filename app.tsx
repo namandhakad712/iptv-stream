@@ -156,26 +156,37 @@ const HLS_URL = 'https://cdn.jsdelivr.net/npm/hls.js@1.4.12/dist/hls.min.js';
 
 const RENDER_LIMIT = 400;
 
-// Cookie Persistence Utilities
-const setCookie = (name: string, value: any, days = 365) => {
-  const d = new Date();
-  d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
-  const expires = "expires=" + d.toUTCString();
-  document.cookie = name + "=" + encodeURIComponent(JSON.stringify(value)) + ";" + expires + ";path=/";
+// Advanced Persistence Utilities (LocalStorage > Cookie)
+const setCookie = (name: string, value: any) => {
+  try {
+    localStorage.setItem(name, JSON.stringify(value));
+  } catch (e) {
+    console.warn('Storage exceeded', e);
+  }
+  // Clear old legacy cookies if they exist
+  document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 };
 
 const getCookie = (name: string, defaultValue: any = null) => {
+  try {
+    const item = localStorage.getItem(name);
+    if (item !== null) return JSON.parse(item);
+  } catch(e) {}
+
+  // Fallback map migrating strictly from old cookies
   const cname = name + "=";
   const decodedCookie = decodeURIComponent(document.cookie);
   const ca = decodedCookie.split(';');
-  for(let i = 0; i < ca.length; i++) {
+  for (let i = 0; i < ca.length; i++) {
     let c = ca[i];
     while (c.charAt(0) === ' ') {
       c = c.substring(1);
     }
     if (c.indexOf(cname) === 0) {
       try {
-        return JSON.parse(c.substring(cname.length, c.length));
+        const val = JSON.parse(c.substring(cname.length, c.length));
+        localStorage.setItem(name, JSON.stringify(val)); // migrate
+        return val;
       } catch(e) {
         return c.substring(cname.length, c.length);
       }
@@ -543,7 +554,10 @@ export default function App() {
 
   useEffect(() => {
     // Dynamic open-source playlist fetching if the user has no sources configured
-    if (sources.length === 0 && !getCookie('streamos_sources')) {
+    const savedSources = getCookie('streamos_sources');
+    const isFirstTimeOrEmpty = !savedSources || (Array.isArray(savedSources) && savedSources.length === 0);
+
+    if (sources.length === 0 && isFirstTimeOrEmpty) {
       fetch('https://iptv-org.github.io/api/categories.json')
         .then(r => r.json())
         .then(data => {
@@ -551,7 +565,7 @@ export default function App() {
               id: `iptv_${cat.id}`,
               label: `IPTV-Org (${cat.name})`,
               url: `https://iptv-org.github.io/iptv/categories/${cat.id}.m3u`,
-              active: true,
+              active: cat.id !== 'xxx', // Default Adult to OFF
               custom: false
            }));
            openSourceLists.unshift(
@@ -1696,7 +1710,10 @@ export default function App() {
                        </div>
                        <button 
                          onClick={() => {
-                           ['streamos_sources','streamos_filters','streamos_sidebarWidth','streamos_volume','streamos_isMuted','streamos_activeChannel','streamos_selectedQuality','streamos_autoResume','streamos_dataSaver','streamos_videoFit'].forEach(c => document.cookie = c + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;");
+                           ['streamos_sources','streamos_filters','streamos_sidebarWidth','streamos_volume','streamos_isMuted','streamos_activeChannel','streamos_selectedQuality','streamos_autoResume','streamos_dataSaver','streamos_videoFit'].forEach(c => {
+                             localStorage.removeItem(c);
+                             document.cookie = c + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                           });
                            window.location.reload();
                          }}
                          className="px-4 py-2 bg-red-500/20 hover:bg-red-500/40 text-red-300 border border-red-500/30 rounded-lg text-xs font-bold transition"

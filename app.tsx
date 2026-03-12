@@ -230,7 +230,7 @@ const Icons = {
   Check: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
 };
 
-const VideoPlayer = ({ channel, onStatus, setAvailableQualities, currentQuality, videoRef, setIsPlaying }) => {
+const VideoPlayer = ({ channel, onStatus, setAvailableQualities, currentQuality, videoRef, setIsPlaying, dataSaver }: any) => {
   const hlsRef = useRef(null);
 
   useEffect(() => {
@@ -274,6 +274,10 @@ const VideoPlayer = ({ channel, onStatus, setAvailableQualities, currentQuality,
             onStatus('PAUSED - CLICK TO PLAY');
             setIsPlaying(false);
           });
+
+          if (dataSaver && data.levels && data.levels.length > 0) {
+            hls.autoLevelCapping = 0;
+          }
 
           const levels = data.levels.map((l, idx) => ({
             id: idx,
@@ -339,7 +343,7 @@ const VideoPlayer = ({ channel, onStatus, setAvailableQualities, currentQuality,
   return (
     <video
       ref={videoRef}
-      className="w-full h-full object-cover absolute inset-0 z-0 bg-black"
+      className={`w-full h-full object-cover absolute inset-0 bg-black ${dataSaver ? 'z-[1]' : 'z-0'}`}
       crossOrigin="anonymous"
       autoPlay
       playsInline
@@ -347,6 +351,38 @@ const VideoPlayer = ({ channel, onStatus, setAvailableQualities, currentQuality,
         const target = e.target as HTMLVideoElement;
         target.paused ? target.play() : target.pause()
       }}
+    />
+  );
+};
+
+const AmbilightEngine = ({ videoRef, active }: any) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (!active || !videoRef.current) return;
+    let animId: number;
+    
+    const draw = () => {
+      if (canvasRef.current && videoRef.current && videoRef.current.readyState >= 2) {
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
+        }
+      }
+      animId = requestAnimationFrame(draw);
+    };
+    
+    draw();
+    return () => cancelAnimationFrame(animId);
+  }, [active, videoRef]);
+
+  if (!active) return null;
+  
+  return (
+    <canvas 
+      ref={canvasRef} 
+      width="64" height="64" 
+      className="absolute inset-0 w-full h-full object-cover opacity-80 blur-[80px] saturate-[2.5] mix-blend-screen scale-110 pointer-events-none ui-layer transition-opacity duration-1000 z-[-1]"
     />
   );
 };
@@ -430,7 +466,10 @@ export default function App() {
   const [sourceCache, setSourceCache] = useState<any>({});
   const [loadingState, setLoadingState] = useState(false);
   const [filters, setFilters] = useState(() => getCookie('streamos_filters', { type: 'all', value: '', search: '' }));
-  const [activeChannel, setActiveChannel] = useState<any>(() => getCookie('streamos_activeChannel', null));
+  const [activeChannel, setActiveChannel] = useState<any>(() => {
+    const willAutoResume = getCookie('streamos_autoResume', true);
+    return willAutoResume ? getCookie('streamos_activeChannel', null) : null;
+  });
   const [playerStatus, setPlayerStatus] = useState('STANDBY');
 
   const [isIdle, setIsIdle] = useState(false);
@@ -531,6 +570,9 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(() => getCookie('streamos_volume', 1));
   const [isMuted, setIsMuted] = useState(() => getCookie('streamos_isMuted', false));
+  const [autoResume, setAutoResume] = useState(() => getCookie('streamos_autoResume', true));
+  const [dataSaver, setDataSaver] = useState(() => getCookie('streamos_dataSaver', false));
+  const [ambilight, setAmbilight] = useState(() => getCookie('streamos_ambilight', true));
   const [healthCache, setHealthCache] = useState<any>({});
 
   const idleTimer = useRef<any>(null);
@@ -540,6 +582,8 @@ export default function App() {
     const styleSheet = document.createElement("style");
     styleSheet.innerText = globalStyles;
     document.head.appendChild(styleSheet);
+    // Remove default mobile touch highlights
+    document.head.insertAdjacentHTML('beforeend', `<style> * { -webkit-tap-highlight-color: transparent; } </style>`);
     return () => { document.head.removeChild(styleSheet); };
   }, []);
 
@@ -548,6 +592,9 @@ export default function App() {
   useEffect(() => { setCookie('streamos_sidebarWidth', sidebarWidth); }, [sidebarWidth]);
   useEffect(() => { setCookie('streamos_volume', volume); }, [volume]);
   useEffect(() => { setCookie('streamos_isMuted', isMuted); }, [isMuted]);
+  useEffect(() => { setCookie('streamos_autoResume', autoResume); }, [autoResume]);
+  useEffect(() => { setCookie('streamos_dataSaver', dataSaver); }, [dataSaver]);
+  useEffect(() => { setCookie('streamos_ambilight', ambilight); }, [ambilight]);
   useEffect(() => { setCookie('streamos_activeChannel', activeChannel); }, [activeChannel]);
 
   const fetchWithFallback = async (url: string) => {
@@ -953,14 +1000,20 @@ export default function App() {
     <div className={`w-screen h-screen relative bg-black flex ${isIdle ? 'ui-idle' : ''}`}>
 
       {/* 1. BACKGROUND VIDEO LAYER */}
-      <VideoPlayer
-        channel={activeChannel}
-        onStatus={setPlayerStatus}
-        setAvailableQualities={setAvailableQualities}
-        currentQuality={selectedQuality}
-        videoRef={videoRef}
-        setIsPlaying={setIsPlaying}
-      />
+      <div className="absolute inset-0 overflow-hidden flex items-center justify-center p-0 md:p-8">
+        <div className={`relative w-full h-full ${!ambilight || isMobile ? '' : 'rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)]'}`}>
+          <AmbilightEngine videoRef={videoRef} active={ambilight && !isMobile && playerStatus === 'PLAYING'} />
+          <VideoPlayer
+            channel={activeChannel}
+            onStatus={setPlayerStatus}
+            setAvailableQualities={setAvailableQualities}
+            currentQuality={selectedQuality}
+            videoRef={videoRef}
+            setIsPlaying={setIsPlaying}
+            dataSaver={dataSaver}
+          />
+        </div>
+      </div>
 
       <div className={`absolute inset-0 bg-gradient-to-r from-black/90 via-black/30 to-transparent pointer-events-none z-0 ui-layer transition-opacity duration-300 ${sidebarCollapsed ? 'opacity-0' : 'opacity-100'}`}></div>
 
@@ -1010,9 +1063,9 @@ export default function App() {
               {isPlaying ? <Icons.Pause /> : <Icons.Play />}
             </button>
 
-            <div className="w-px h-5 bg-white/20"></div>
+            <div className={`w-px h-5 bg-white/20 ${isMobile ? 'hidden' : 'block'}`}></div>
 
-            <div className="flex items-center gap-3 group">
+            <div className={`flex items-center gap-3 group ${isMobile ? 'hidden' : 'flex'}`}>
               <button onClick={toggleMute} className="text-white hover:text-blue-400 transition transform hover:scale-110">
                 {isMuted || volume === 0 ? <Icons.Mute /> : <Icons.Volume />}
               </button>
@@ -1041,14 +1094,22 @@ export default function App() {
         </div>
       )}
 
-      {/* Sidebar Open Button */}
+      {/* Sidebar Open Button (Mobile floating toggle & Desktop) */}
       {sidebarCollapsed && (
         <button 
           onClick={() => setSidebarCollapsed(false)}
-          className="absolute top-6 left-6 z-50 p-3 rounded-xl bg-black/60 backdrop-blur-xl border border-white/20 text-white hover:bg-white/20 transition-all shadow-2xl ui-layer"
+          className={`absolute z-50 p-3 rounded-xl bg-black/60 backdrop-blur-xl border border-white/20 text-white hover:bg-white/20 transition-all shadow-2xl ui-layer top-6 ${isMobile ? 'left-4' : 'left-6'} active:scale-95`}
         >
           <Icons.Menu />
         </button>
+      )}
+
+      {/* Mobile Swipe-to-Close Overlay */}
+      {isMobile && !sidebarCollapsed && (
+        <div 
+          className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm animate-in fade-in" 
+          onClick={() => setSidebarCollapsed(true)}
+        ></div>
       )}
 
       {/* 2. FOREGROUND UI LAYER (SIDEBAR) */}
@@ -1369,6 +1430,50 @@ export default function App() {
                       </div>
                     </div>
                     <p className="text-xs text-gray-500">Force a specific resolution if the stream is buffering on Auto mode.</p>
+                  </div>
+
+                  <div className="space-y-3 pt-6 border-t border-white/5">
+                    <label className="text-sm font-bold text-white uppercase tracking-wider block">Playback Automation</label>
+                    
+                    <div className="flex justify-between items-center bg-black/40 rounded-xl p-3 border border-[rgba(255,255,255,0.03)] hover:bg-white/5 transition">
+                      <div className="pr-4">
+                        <div className="text-sm font-medium text-white">Auto-Play Last Stream</div>
+                        <div className="text-[10px] text-gray-500 mt-1">Automatically resume your last watched stream on startup.</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        className="toggle-switch shadow-inner shrink-0"
+                        checked={autoResume}
+                        onChange={() => setAutoResume(!autoResume)}
+                      />
+                    </div>
+
+                    <div className="flex justify-between items-center bg-black/40 rounded-xl p-3 border border-[rgba(255,255,255,0.03)] hover:bg-white/5 transition">
+                      <div className="pr-4">
+                        <div className="text-sm font-medium text-white flex items-center gap-2">Data Saver Mode <span className="bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest leading-none">Mobile Friendly</span></div>
+                        <div className="text-[10px] text-gray-500 mt-1">Force the player to select the lowest available bitrate to save mobile data.</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        className="toggle-switch shadow-inner shrink-0"
+                        checked={dataSaver}
+                        onChange={() => setDataSaver(!dataSaver)}
+                      />
+                    </div>
+
+                    <div className="flex justify-between items-center bg-black/40 rounded-xl p-3 border border-[rgba(255,255,255,0.03)] hover:bg-white/5 transition">
+                      <div className="pr-4">
+                        <div className="text-sm font-medium text-white flex items-center gap-2">Dynamic Ambilight Glow <span className="bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest leading-none">Desktop Only</span></div>
+                        <div className="text-[10px] text-gray-500 mt-1">Extract real-time colors from the video frame to cast a cinematic CSS shadow behind the player. Highly performant.</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        className="toggle-switch shadow-inner shrink-0"
+                        checked={ambilight}
+                        onChange={() => setAmbilight(!ambilight)}
+                        disabled={isMobile}
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-3 pt-6 border-t border-white/5">

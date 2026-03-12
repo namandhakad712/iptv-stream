@@ -1,16 +1,6 @@
 <div align="center">
 
-<pre>
-   .---------------------------------.
-   | .-----------------------------. |
-   | |                             | |
-   | |          STREAM_OS          | |
-   | |                             | |
-   | '-----------------------------' |
-   |=================================|
-   '---------------------------------'
-        //                       \\
-</pre>
+<img src="https://raw.githubusercontent.com/namandhakad712/iptv-stream/main/public/icon-512.png" alt="StreamOS Logo" width="120" style="border-radius: 24px; margin-bottom: 20px;" onerror="this.src='https://ui-avatars.com/api/?name=StreamOS&background=101014&color=fff&size=120&bold=true&rounded=true'"/>
 
 # 📺 StreamOS
 
@@ -22,12 +12,14 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![React](https://img.shields.io/badge/React-18+-61dafb?style=for-the-badge&logo=react)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v3-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
 [![Vite](https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![PWA](https://img.shields.io/badge/PWA-Ready-5A0FC8?style=for-the-badge&logo=pwa&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps)
 
 <br/>
 
-[**Live Demo**](https://iptv-live-stream.vercel.app/) • [**Report Bug**](https://github.com/namandhakad712/iptv-stream/issues) • [**Request Feature**](https://github.com/namandhakad712/iptv-stream/issues)
+[**Live Demo**](https://iptv-live-stream.vercel.app/) • [**Report Bug**](https://github.com/namandhakad712/iptv-stream/issues) • [**Request Feature**](https://github.com/namandhakad712/iptv-stream/issues) • [**Contribute**](#-contributing)
 
 ---
 
@@ -35,7 +27,7 @@
 
 <br />
 
-Welcome to **StreamOS**, a blazing-fast, strictly client-side React + Vite web application built for aggregating, filtering, and streaming `.m3u` and `.m3u8` IPTV playlists. Featuring a gorgeous glassmorphic UI, dynamic category/language/country filtering, and secure local cookie persistence—all **without** requiring a backend database!
+Welcome to **StreamOS**, a blazing-fast, strictly client-side React + Vite web application built for aggregating, filtering, and streaming `.m3u` and `.m3u8` IPTV playlists. Featuring a gorgeous glassmorphic UI, dynamic category/language/country filtering, intelligent mobile PWA support, and secure local cookie persistence—all **without** requiring a backend database!
 
 <br />
 
@@ -43,11 +35,12 @@ Welcome to **StreamOS**, a blazing-fast, strictly client-side React + Vite web a
 
 | Feature | Description |
 | :--- | :--- |
-| **🚀 Serverless Architecture** | Entirely client-side (PWA ready). No databases to maintain or backend servers to pay for. |
-| **🎨 Glassmorphic Interface** | Breathtaking, premium dark-mode UI meticulously crafted with TailwindCSS, featuring smooth micro-animations. |
+| **🚀 Serverless Architecture** | Entirely client-side. No databases to maintain or backend servers to pay for. |
+| **📱 PWA & Mobile Native Feel** | Fully optimized Progressive Web App. Install directly to your iOS/Android home screen. Includes Haptic Touch, Double-Tap to Seek, Swipe Volume, and Screen Lock modes. |
+| **🎨 Glassmorphic Interface** | Breathtaking, premium dark-mode UI meticulously crafted with TailwindCSS, featuring smooth GSAP micro-animations and Cinematic Background Ambilight. |
 | **🌍 Dynamic Full-Scale Filtering** | Stacked filters that auto-update dynamically based on standard `.m3u` tags (`tvg-country`, `tvg-language`, `group-title`), allowing you to slice through thousands of channels instantly. |
-| **💾 True Session Persistence** | Safely auto-saves your preferences, volume, layout width, and custom stream sources using secure browser cookies. |
-| **🛠 Universal Format Support** | Natively plays HLS streams using the powerful `hls.js` engine, with an integrated fallback for native Apple/Safari devices. |
+| **💾 True Session Persistence** | Safely auto-saves your preferences, custom stream sources, volume, and playback configurations using secure browser cookies. |
+| **🛠 Universal Format Support** | Natively plays HLS streams using the powerful `hls.js` engine, with adaptive bitrate/resolution selection, Data Saver mode, and an integrated fallback for native Apple/Safari devices. |
 | **📡 Expandable Custom Sources**| Ships with incredible global directories, plus allows dynamic adding/removing of your own `.m3u` URLs directly from the UI! |
 | **📸 Built-in Snapshot Tool** | Integrated canvas rendering module lets you take instant, high-quality screenshots of your favorite live TV moments. |
 
@@ -57,7 +50,7 @@ Welcome to **StreamOS**, a blazing-fast, strictly client-side React + Vite web a
 
 ## ⚡ Quick Start (Local Setup)
 
-Want to run this beautiful application on your local machine? It takes just seconds to spin up.
+Want to run this beautiful application on your local machine or contribute to the codebase? It takes just seconds to spin up.
 
 1. **Clone the repository:**
    ```bash
@@ -65,8 +58,8 @@ Want to run this beautiful application on your local machine? It takes just seco
    cd iptv-stream
    ```
 
-2. **Install exactly the locked dependencies:**
-   *(Note: This project leverages Tailwind CSS v3)*
+2. **Install dependencies:**
+   *(Note: This project leverages React 18 and Tailwind CSS v3)*
    ```bash
    npm install
    ```
@@ -76,8 +69,8 @@ Want to run this beautiful application on your local machine? It takes just seco
    npm run dev
    ```
 
-4. **Enjoy the Magic:**
-   Open `http://localhost:5173/` in your browser to experience it live.
+4. **Experience the Magic:**
+   Open `http://localhost:5173/` in your browser.
 
 <br />
 
@@ -97,7 +90,30 @@ StreamOS includes a pre-configured `vercel.json` routing configuration out of th
 
 ---
 
-## 🌐 Open Source Resources & Acknowledgements (Full Potential)
+## 🤝 Contributing
+
+**StreamOS is entirely Open Source and community-driven!** We welcome all contributions, from bug fixes and UI enhancements to whole new feature implementations. 
+
+### How to Contribute
+
+1. **Fork the repository** on GitHub.
+2. **Clone your fork** locally: `git clone https://github.com/YOUR_USERNAME/iptv-stream.git`
+3. **Create a new branch** for your feature: `git checkout -b feature/AmazingFeature`
+4. **Make your changes** and test them thoroughly using `npm run dev`.
+5. **Commit your changes** with descriptive commit messages: `git commit -m "Add some AmazingFeature"`
+6. **Push to the branch**: `git push origin feature/AmazingFeature`
+7. **Open a Pull Request** against the `main` branch of this repository.
+
+### Development Guidelines
+- Ensure your code follows the existing style and architecture (React functional components, Tailwind utility classes).
+- If adding new icons, please use raw SVGs injected into our `Icons` object within `app.tsx` to maintain zero-dependency UI rendering.
+- Test mobile responsiveness and dark-mode contrast before submitting UI changes.
+
+<br />
+
+---
+
+## 🌐 Open Source Resources & Acknowledgements 
 
 **StreamOS leverages the absolute full potential of massive, globally maintained open-source IPTV directories.** 
 
@@ -111,20 +127,14 @@ Massive, profound acknowledgements to the following incredible open-source proje
 The backbone of our global feed. IPTV-Org maintains a staggering collection of publicly available, legally free IPTV channels from all over the world. StreamOS directly integrates their master streams:
 - `index.m3u` (All 30k+ Channels globally)
 - Curated Global Categories (`movies.m3u`, `news.m3u`, `sports.m3u`, `music.m3u`)
-- *For developers:* Explore their rich data sources at their [API Documentation](https://github.com/iptv-org/api) parsing Channels, Feeds, Logos, and EPG Guides directly.
+- *For developers:* Explore their rich data sources at their [API Documentation](https://github.com/iptv-org/api).
 
 #### 2. [**Free-TV**](https://github.com/Free-TV/IPTV)
-A beautifully and actively maintained list of completely free, public, and legal IPTV channels. We integrate their primary master lists, movies, and dedicated kids channels natively.
+A beautifully and actively maintained list of completely free, public, and legal IPTV channels. We integrate their primary master lists natively.
 
 #### 3. [**i.mjh.nz Aggregations**](https://i.mjh.nz/)
-A pivotal community resource maintaining deeply updated live endpoint `.m3u8` lists for massive public broadcast television networks. Our default stack connects directly to their global pipelines for:
-- [**Pluto TV**](https://i.mjh.nz/PlutoTV/)
-- [**Plex Live TV**](https://i.mjh.nz/Plex/)
-- [**Samsung TV Plus**](https://i.mjh.nz/SamsungTVPlus/)
-- [**Roku Channel**](https://i.mjh.nz/Roku/)
-- [**Tubi TV**](https://i.mjh.nz/Tubi/)
-- [**PBS Network**](https://i.mjh.nz/PBS/)
-- [**Stirr TV**](https://i.mjh.nz/Stirr/)
+A pivotal community resource maintaining deeply updated live endpoint `.m3u8` lists for massive public broadcast television networks:
+- [Pluto TV](https://i.mjh.nz/PlutoTV/) • [Plex Live TV](https://i.mjh.nz/Plex/) • [Samsung TV Plus](https://i.mjh.nz/SamsungTVPlus/) • [Roku Channel](https://i.mjh.nz/Roku/) • [Tubi TV](https://i.mjh.nz/Tubi/) • [PBS Network](https://i.mjh.nz/PBS/) • [Stirr TV](https://i.mjh.nz/Stirr/)
 
 <br />
 

@@ -151,24 +151,7 @@ const globalStyles = `
 
 const HLS_URL = 'https://cdn.jsdelivr.net/npm/hls.js@1.4.12/dist/hls.min.js';
 
-// Ultra Expanded Default Sources Config
-const DEFAULT_SOURCES = [
-  { id: 'iptv_global', label: 'IPTV-Org (Global/All 30k+)', url: 'https://iptv-org.github.io/iptv/index.m3u', active: true, custom: false },
-  { id: 'iptv_movies', label: 'IPTV-Org (Movies)', url: 'https://iptv-org.github.io/iptv/categories/movies.m3u', active: true, custom: false },
-  { id: 'iptv_news', label: 'IPTV-Org (News)', url: 'https://iptv-org.github.io/iptv/categories/news.m3u', active: true, custom: false },
-  { id: 'iptv_sports', label: 'IPTV-Org (Sports)', url: 'https://iptv-org.github.io/iptv/categories/sports.m3u', active: true, custom: false },
-  { id: 'iptv_music', label: 'IPTV-Org (Music)', url: 'https://iptv-org.github.io/iptv/categories/music.m3u', active: true, custom: false },
-  { id: 'f_main', label: 'Free-TV (Master Playlist)', url: 'https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8', active: true, custom: false },
-  { id: 'f_movies', label: 'Free-TV (Movies)', url: 'https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist_movies.m3u8', active: true, custom: false },
-  { id: 'f_kids', label: 'Free-TV (Kids)', url: 'https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist_kids.m3u8', active: true, custom: false },
-  { id: 'p_all', label: 'Pluto TV (Global Aggregation)', url: 'https://i.mjh.nz/PlutoTV/all.m3u8', active: true, custom: false },
-  { id: 'plex_all', label: 'Plex Live TV (Global Aggregation)', url: 'https://i.mjh.nz/Plex/all.m3u8', active: true, custom: false },
-  { id: 's_all', label: 'Samsung TV Plus (Global Aggregation)', url: 'https://i.mjh.nz/SamsungTVPlus/all.m3u8', active: true, custom: false },
-  { id: 'roku_all', label: 'Roku Channel (Global Aggregation)', url: 'https://i.mjh.nz/Roku/all.m3u8', active: true, custom: false },
-  { id: 'tubi_all', label: 'Tubi TV (Global Aggregation)', url: 'https://i.mjh.nz/Tubi/all.m3u8', active: true, custom: false },
-  { id: 'pbs_all', label: 'PBS Network (Global Aggregation)', url: 'https://i.mjh.nz/PBS/all.m3u8', active: true, custom: false },
-  { id: 'stirr_all', label: 'Stirr TV (Global Aggregation)', url: 'https://i.mjh.nz/Stirr/all.m3u8', active: true, custom: false }
-];
+// We load sources purely dynamically from IPTV-Org Open API if empty.
 
 const RENDER_LIMIT = 400;
 
@@ -439,10 +422,9 @@ const SearchableSelect = ({ options, value, onChange, placeholder, icon }: any) 
 };
 
 export default function App() {
-  const [sources, setSources] = useState(() => {
+  const [sources, setSources] = useState<any[]>(() => {
     const saved = getCookie('streamos_sources');
-    if (saved) return saved;
-    return DEFAULT_SOURCES;
+    return saved || [];
   });
 
   const [sourceCache, setSourceCache] = useState<any>({});
@@ -461,23 +443,67 @@ export default function App() {
   const [worldCountriesList, setWorldCountriesList] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('https://restcountries.com/v3.1/all?fields=cca2,cca3,name')
+    fetch('https://restcountries.com/v3.1/all?fields=cca2,cca3,name,timezones')
       .then(res => res.json())
       .then(data => {
         const map: any = {};
         const list: any[] = [];
         data.forEach((c: any) => {
-          const cca2 = c.cca2.toUpperCase();
+          const cca2 = c.cca2?.toUpperCase();
+          if (!cca2) return;
           const name = c.name?.common;
+          const tz = c.timezones && c.timezones.length > 0 ? c.timezones[0] : null;
           if (c.cca3) map[c.cca3.toUpperCase()] = cca2;
           if (name) map[name.toUpperCase()] = cca2;
-          list.push({ code: cca2, name: name });
+          list.push({ code: cca2, name: name, tz });
         });
         setCountryMap(map);
         setWorldCountriesList(list);
       })
       .catch(console.error);
   }, []);
+
+  useEffect(() => {
+    // Dynamic open-source playlist fetching if the user has no sources configured
+    if (sources.length === 0 && !getCookie('streamos_sources')) {
+      fetch('https://iptv-org.github.io/api/categories.json')
+        .then(r => r.json())
+        .then(data => {
+           const openSourceLists = data.filter((c:any) => c.name).map((cat: any) => ({
+              id: `iptv_${cat.id}`,
+              label: `IPTV-Org (${cat.name})`,
+              url: `https://iptv-org.github.io/iptv/categories/${cat.id}.m3u`,
+              active: true,
+              custom: false
+           }));
+           openSourceLists.unshift(
+             { id: 'iptv_global', label: 'IPTV-Org (Global Master)', url: 'https://iptv-org.github.io/iptv/index.m3u', active: true, custom: false },
+             { id: 'f_main', label: 'Free-TV (Master Playlist)', url: 'https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8', active: true, custom: false },
+             { id: 'p_all', label: 'Pluto TV (Global Aggregation)', url: 'https://i.mjh.nz/PlutoTV/all.m3u8', active: true, custom: false },
+             { id: 'plex_all', label: 'Plex Live TV (Global Aggregation)', url: 'https://i.mjh.nz/Plex/all.m3u8', active: true, custom: false },
+             { id: 's_all', label: 'Samsung TV Plus (Global Aggregation)', url: 'https://i.mjh.nz/SamsungTVPlus/all.m3u8', active: true, custom: false },
+             { id: 'roku_all', label: 'Roku Channel (Global Aggregation)', url: 'https://i.mjh.nz/Roku/all.m3u8', active: true, custom: false },
+             { id: 'tubi_all', label: 'Tubi TV (Global Aggregation)', url: 'https://i.mjh.nz/Tubi/all.m3u8', active: true, custom: false },
+             { id: 'stirr_all', label: 'Stirr TV (Global Aggregation)', url: 'https://i.mjh.nz/Stirr/all.m3u8', active: true, custom: false }
+           );
+           setSources(openSourceLists);
+        })
+        .catch(console.error);
+    }
+  }, [sources.length]);
+
+  const calculateLocalTime = (tzString: string) => {
+    if (!tzString || !tzString.includes('UTC')) return '';
+    if (tzString === 'UTC') return new Date().toLocaleTimeString([], {timeZone: 'UTC', hour:'2-digit', minute:'2-digit'});
+    const match = tzString.match(/UTC([+-])(\d{2}):(\d{2})/);
+    if (!match) return '';
+    const sign = match[1] === '+' ? 1 : -1;
+    const offsetMs = sign * ((parseInt(match[2], 10) * 60) + parseInt(match[3], 10)) * 60 * 1000;
+    
+    const now = new Date();
+    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+    return new Date(utcTime + offsetMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -497,6 +523,7 @@ export default function App() {
   const [screenshotMsg, setScreenshotMsg] = useState('');
   const [newSourceLabel, setNewSourceLabel] = useState('');
   const [newSourceUrl, setNewSourceUrl] = useState('');
+  const [settingsTab, setSettingsTab] = useState('sources');
 
   // Video Controls State
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -946,11 +973,15 @@ export default function App() {
       ) : (
         <div className="absolute top-8 right-8 z-10 flex flex-col items-end pointer-events-none drop-shadow-lg ui-layer">
           <div className="text-3xl font-medium shadow-black drop-shadow-md">{activeChannel.name}</div>
-          <div className="text-sm uppercase tracking-widest flex items-center gap-2 mt-1 drop-shadow-md">
+          <div className="text-sm uppercase tracking-widest flex items-center gap-2 mt-1 drop-shadow-md text-white/80">
+            {activeChannel.countryCode && worldCountriesList.find(c => c.code === activeChannel.countryCode)?.tz && (
+               <span className="mr-2 px-2 py-0.5 bg-black/40 backdrop-blur-md rounded-full text-xs border border-white/20 shadow-sm flex items-center">
+                 <Icons.Globe className="inline w-3 h-3 mr-1.5" />
+                 Local Time: {calculateLocalTime(worldCountriesList.find(c => c.code === activeChannel.countryCode)?.tz)}
+               </span>
+            )}
             {playerStatus === 'PLAYING' && <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]"></span>}
-            <span className={playerStatus === 'STREAM UNAVAILABLE' ? 'text-red-400' : 'text-white/80'}>
-              {playerStatus}
-            </span>
+            <span className={playerStatus === 'STREAM UNAVAILABLE' ? 'text-red-400' : 'text-white/80'}>{playerStatus}</span>
           </div>
         </div>
       )}
@@ -1150,12 +1181,14 @@ export default function App() {
                       ${isFocused ? 'focused' : ''}`}
                     title={channel.name}
                   >
-                    {/* Compact Logo */}
+                    {/* Smart HD Logo / Initial Fallback */}
                     <div className="w-10 h-10 rounded bg-black/60 border border-[rgba(255,255,255,0.05)] flex items-center justify-center overflow-hidden shrink-0">
                       {channel.logo ? (
-                        <img src={channel.logo} alt="" className="w-full h-full object-contain p-1" onError={(e) => (e.target as HTMLImageElement).style.display = 'none'} />
+                        <img src={channel.logo} alt="" className="w-full h-full object-contain p-1" onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.name)}&background=random&color=fff&size=64&bold=true`;
+                        }} />
                       ) : (
-                        <span className="text-sm font-bold opacity-40">{channel.name.charAt(0)}</span>
+                        <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(channel.name)}&background=random&color=fff&size=64&bold=true`} alt="" className="w-full h-full object-cover" />
                       )}
                     </div>
 
@@ -1215,100 +1248,159 @@ export default function App() {
 
       {/* 3. SETTINGS MODAL */}
       {showSettings && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-[#101014] border border-[rgba(255,255,255,0.1)] w-full max-w-lg rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden">
-
-            <div className="p-5 border-b border-[rgba(255,255,255,0.05)] flex justify-between items-center bg-[#15151a]">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Icons.Settings /> Configuration
-              </h2>
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
+          <div className="bg-[#101014]/90 backdrop-blur-xl border border-[rgba(255,255,255,0.1)] w-full max-w-2xl rounded-2xl shadow-[0_30px_60px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden">
+            
+            <div className="p-6 border-b border-[rgba(255,255,255,0.05)] flex justify-between items-center bg-white/[0.02]">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/10 rounded-lg text-white"><Icons.Settings /></div>
+                <div>
+                  <h2 className="text-xl font-bold tracking-wide">Configuration</h2>
+                  <p className="text-[11px] text-gray-500 uppercase tracking-widest mt-0.5">Customize your StreamOS Experience</p>
+                </div>
+              </div>
               <button
                 onClick={() => setShowSettings(false)}
-                className="p-1 rounded bg-white/5 hover:bg-white/10 transition"
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/15 hover:rotate-90 transition-all text-white border border-white/5"
               >
                 <Icons.Close />
               </button>
             </div>
 
+            {/* Tabs */}
+            <div className="flex border-b border-[rgba(255,255,255,0.05)] bg-[#15151a]/50 px-6 pt-4 gap-6">
+              <button 
+                onClick={() => setSettingsTab('sources')}
+                className={`pb-3 text-sm font-medium transition-all ${settingsTab === 'sources' ? 'text-white border-b-2 border-white' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                Stream Sources
+              </button>
+              <button 
+                onClick={() => setSettingsTab('playback')}
+                className={`pb-3 text-sm font-medium transition-all ${settingsTab === 'playback' ? 'text-white border-b-2 border-white' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                Playback & General
+              </button>
+            </div>
+
             {/* Scrollable Settings Content */}
-            <div className="p-6 overflow-y-auto max-h-[70vh] space-y-8">
+            <div className="p-6 overflow-y-auto max-h-[60vh] custom-scrollbar space-y-8 bg-[#101014]/50">
 
-              {/* Source Management Section */}
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-1">Unified Providers</h3>
-                  <p className="text-xs text-gray-500">Toggle stream providers to include them in your unified list.</p>
-                </div>
+              {settingsTab === 'sources' && (
+                <div className="space-y-6 animate-in slide-in-from-left-4 duration-300">
+                  <div>
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-1 flex items-center gap-2">
+                       Active Stream Directories <span className="px-2 py-0.5 bg-white/10 rounded-full text-[10px]">{sources.length}</span>
+                    </h3>
+                    <p className="text-xs text-gray-500">Toggle stream providers to include them in your unified list.</p>
+                  </div>
 
-                <div className="space-y-2 bg-[#1a1a20] rounded-xl p-3 border border-[rgba(255,255,255,0.05)]">
-                  {sources.map(src => (
-                    <div key={src.id} className="flex justify-between items-center py-2 px-2 hover:bg-white/5 rounded-lg transition">
-                      <div className="flex-1 min-w-0 pr-4">
-                        <div className="text-sm font-medium text-white truncate">{src.label}</div>
-                        <div className="text-[10px] text-gray-500 truncate">{src.url}</div>
+                  <div className="space-y-2 bg-black/40 rounded-xl p-2 border border-[rgba(255,255,255,0.03)] overflow-hidden">
+                    {sources.map(src => (
+                      <div key={src.id} className="flex justify-between items-center p-3 hover:bg-white/5 rounded-lg transition-colors group">
+                        <div className="flex-1 min-w-0 pr-4">
+                          <div className={`text-sm font-medium truncate transition ${src.active ? 'text-white' : 'text-gray-600'}`}>
+                            {src.label} {src.custom && <span className="ml-2 text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded tracking-widest uppercase align-middle">Custom</span>}
+                          </div>
+                          <div className={`text-[10px] truncate mt-0.5 transition ${src.active ? 'text-gray-400' : 'text-gray-700'}`}>{src.url}</div>
+                        </div>
+                        <div className="flex items-center gap-4 shrink-0">
+                          {src.custom && (
+                            <button onClick={() => deleteSource(src.id)} className="text-gray-600 opacity-0 group-hover:opacity-100 hover:text-red-400 transition" title="Delete Source">
+                              <Icons.Trash />
+                            </button>
+                          )}
+                          <input
+                            type="checkbox"
+                            className="toggle-switch shadow-inner"
+                            checked={src.active}
+                            onChange={() => toggleSource(src.id)}
+                          />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        {src.custom && (
-                          <button onClick={() => deleteSource(src.id)} className="text-gray-500 hover:text-red-400 transition">
-                            <Icons.Trash />
-                          </button>
-                        )}
+                    ))}
+                  </div>
+
+                  <div className="mt-8 pt-6 border-t border-white/5">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-2">Import Custom M3U</h3>
+                    <form onSubmit={addManualSource} className="flex gap-3 items-end">
+                      <div className="flex-1 grid grid-cols-2 gap-3">
                         <input
-                          type="checkbox"
-                          className="toggle-switch"
-                          checked={src.active}
-                          onChange={() => toggleSource(src.id)}
+                          type="text"
+                          placeholder="e.g. My Premium IPTV"
+                          className="input-minimal w-full text-sm py-2.5 bg-black/50 border-white/10"
+                          value={newSourceLabel}
+                          onChange={e => setNewSourceLabel(e.target.value)}
+                        />
+                        <input
+                          type="url"
+                          placeholder="https://.../list.m3u8"
+                          className="input-minimal w-full text-sm py-2.5 bg-black/50 border-white/10"
+                          value={newSourceUrl}
+                          onChange={e => setNewSourceUrl(e.target.value)}
                         />
                       </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Add Custom Source Form */}
-                <form onSubmit={addManualSource} className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      placeholder="Custom Label"
-                      className="input-minimal text-xs py-2 mb-2 bg-[#1a1a20]"
-                      value={newSourceLabel}
-                      onChange={e => setNewSourceLabel(e.target.value)}
-                    />
-                    <input
-                      type="url"
-                      placeholder="M3U Playlist URL..."
-                      className="input-minimal text-xs py-2 bg-[#1a1a20]"
-                      value={newSourceUrl}
-                      onChange={e => setNewSourceUrl(e.target.value)}
-                    />
+                      <button type="submit" className="bg-white text-black px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-200 transition shadow-lg h-fit">
+                        Add
+                      </button>
+                    </form>
                   </div>
-                  <button type="submit" className="bg-white text-black px-4 py-2 rounded-lg text-xs font-bold hover:bg-gray-200 transition h-fit">
-                    ADD
-                  </button>
-                </form>
-              </div>
+                </div>
+              )}
 
-              {/* Bitrate Selector */}
-              <div className="space-y-2 pt-6 border-t border-[rgba(255,255,255,0.05)]">
-                <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Stream Quality (Bitrate)</label>
-                <select
-                  className="input-minimal w-full appearance-none cursor-pointer bg-[#1a1a20]"
-                  value={selectedQuality}
-                  onChange={(e) => setSelectedQuality(Number(e.target.value))}
-                  disabled={availableQualities.length <= 1}
-                >
-                  {availableQualities.length > 0
-                    ? availableQualities.map(q => <option key={q.id} value={q.id}>{q.label}</option>)
-                    : <option value="-1">Auto (No alternative levels found)</option>
-                  }
-                </select>
-                <p className="text-xs text-gray-500">Force a specific resolution/bitrate if the broadcast supports it.</p>
-              </div>
+              {settingsTab === 'playback' && (
+                <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold text-white uppercase tracking-wider block">Stream Resolution (Bitrate)</label>
+                    <div className="relative">
+                      <select
+                        className="input-minimal w-full appearance-none cursor-pointer bg-black/50 border-white/10 py-3 pl-4 pr-10 hover:border-white/30"
+                        value={selectedQuality}
+                        onChange={(e) => setSelectedQuality(Number(e.target.value))}
+                        disabled={availableQualities.length <= 1}
+                      >
+                        {availableQualities.length > 0
+                          ? availableQualities.map(q => <option key={q.id} value={q.id}>{q.label}</option>)
+                          : <option value="-1">Auto (Adaptive Engine Active)</option>
+                        }
+                      </select>
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                        <Icons.ChevronDown />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">Force a specific resolution if the stream is buffering on Auto mode.</p>
+                  </div>
+
+                  <div className="space-y-3 pt-6 border-t border-white/5">
+                    <label className="text-sm font-bold text-white uppercase tracking-wider block text-red-400">Danger Zone</label>
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex justify-between items-center">
+                       <div>
+                         <h4 className="text-sm font-medium text-white">Factory Reset</h4>
+                         <p className="text-xs text-red-300/70 mt-1">Clear all saved filters, sources, UI states, and history.</p>
+                       </div>
+                       <button 
+                         onClick={() => {
+                           ['streamos_sources','streamos_filters','streamos_sidebarWidth','streamos_volume','streamos_isMuted','streamos_activeChannel'].forEach(c => document.cookie = c + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;");
+                           window.location.reload();
+                         }}
+                         className="px-4 py-2 bg-red-500/20 hover:bg-red-500/40 text-red-300 border border-red-500/30 rounded-lg text-xs font-bold transition"
+                       >
+                         Nuke Everything
+                       </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
             </div>
 
-            <div className="p-3 text-center bg-[#15151a] border-t border-[rgba(255,255,255,0.05)]">
-              <p className="text-[10px] text-gray-600 uppercase tracking-widest">StreamOS Engine v4.0 • Unified Architecture</p>
+            <div className="p-4 flex items-center justify-between bg-black/40 border-t border-white/5 backdrop-blur-xl">
+              <p className="text-[10px] text-gray-500 font-mono tracking-widest">STREAM-OS • V4.5 TURBO</p>
+              <div className="flex gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-white/20"></div>
+                <div className="w-1.5 h-1.5 rounded-full bg-white/20"></div>
+                <div className="w-1.5 h-1.5 rounded-full bg-white/50"></div>
+              </div>
             </div>
           </div>
         </div>

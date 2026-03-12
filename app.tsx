@@ -230,7 +230,8 @@ const Icons = {
   Cast: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path><line x1="2" y1="20" x2="2.01" y2="20"></line></svg>,
   Check: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
   Lock: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>,
-  Unlock: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+  Unlock: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>,
+  Fullscreen: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
 };
 
 const VideoPlayer = ({ channel, onStatus, setAvailableQualities, currentQuality, videoRef, setIsPlaying, dataSaver, videoFit }: any) => {
@@ -1049,6 +1050,44 @@ export default function App() {
     }
   };
 
+  const toggleFullscreen = () => {
+    vibrate(20);
+    const elem = videoRef.current;
+    if (!elem) return;
+    
+    if (!document.fullscreenElement) {
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(() => {});
+      } else if ((elem as any).webkitRequestFullscreen) { /* Safari */
+        (elem as any).webkitRequestFullscreen();
+      } else if ((elem as any).msRequestFullscreen) { /* IE11 */
+        (elem as any).msRequestFullscreen();
+      }
+      
+      // Attempt to force landscape orientation if supported
+      try {
+        if (screen.orientation && (screen.orientation as any).lock) {
+          (screen.orientation as any).lock('landscape').catch(() => {});
+        }
+      } catch (e) {}
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if ((document as any).webkitExitFullscreen) { /* Safari */
+        (document as any).webkitExitFullscreen();
+      } else if ((document as any).msExitFullscreen) { /* IE11 */
+        (document as any).msExitFullscreen();
+      }
+
+      // Unlock orientation
+      try {
+        if (screen.orientation && screen.orientation.unlock) {
+          screen.orientation.unlock();
+        }
+      } catch (e) {}
+    }
+  };
+
   const pingHealth = async (e: any, channel: any) => {
     e.stopPropagation();
     if (healthCache[channel.id] === 'checking') return;
@@ -1233,9 +1272,15 @@ export default function App() {
             <button onClick={togglePiP} className="text-white hover:text-yellow-400 transition transform hover:scale-110 active:scale-90" title="Picture-in-Picture">
               <Icons.PiP />
             </button>
-            <button onClick={requestCast} className="text-white hover:text-cyan-400 transition transform hover:scale-110 active:scale-90" title="AirPlay / Cast">
-              <Icons.Cast />
-            </button>
+            {isMobile ? (
+              <button onClick={toggleFullscreen} className="text-white hover:text-cyan-400 transition transform hover:scale-110 active:scale-90" title="Fullscreen / Landscape Mode">
+                <Icons.Fullscreen />
+              </button>
+            ) : (
+              <button onClick={requestCast} className="text-white hover:text-cyan-400 transition transform hover:scale-110 active:scale-90" title="AirPlay / Cast">
+                <Icons.Cast />
+              </button>
+            )}
 
             <button onClick={handleScreenshot} className="text-white hover:text-purple-400 transition transform hover:scale-110 active:scale-90" title="Take Screenshot">
               <Icons.Camera />
@@ -1291,7 +1336,7 @@ export default function App() {
               <Icons.TV />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-2xl font-bold tracking-wide leading-none">StreamOS</h1>
+              <h1 className="text-xl md:text-2xl font-bold tracking-wide leading-none">StreamOS</h1>
               <div className="text-[10px] text-[var(--text-muted)] flex items-center gap-1.5 mt-1 font-semibold tracking-widest uppercase">
                 {activeSourceCount > 0 ? (
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_5px_#4ade80]"></span>

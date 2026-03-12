@@ -318,8 +318,13 @@ const VideoPlayer = ({ channel, onStatus, setAvailableQualities, currentQuality,
       }
     }
 
-    return () => { if (hlsRef.current) hlsRef.current.destroy(); };
-  }, [channel, onStatus, setAvailableQualities, videoRef, setIsPlaying]);
+    return () => { 
+      if (hlsRef.current) {
+        hlsRef.current.destroy(); 
+        hlsRef.current = null;
+      }
+    };
+  }, [channel, onStatus, setAvailableQualities, videoRef, setIsPlaying, dataSaver]);
 
   useEffect(() => {
     const vid = videoRef.current;
@@ -582,8 +587,11 @@ export default function App() {
     const styleSheet = document.createElement("style");
     styleSheet.innerText = globalStyles;
     document.head.appendChild(styleSheet);
-    // Remove default mobile touch highlights
-    document.head.insertAdjacentHTML('beforeend', `<style> * { -webkit-tap-highlight-color: transparent; } </style>`);
+    // Remove default mobile touch highlights & selection
+    document.head.insertAdjacentHTML('beforeend', `<style> 
+      * { -webkit-tap-highlight-color: transparent; } 
+      .prevent-select { -webkit-user-select: none; user-select: none; }
+    </style>`);
     return () => { document.head.removeChild(styleSheet); };
   }, []);
 
@@ -1019,22 +1027,24 @@ export default function App() {
 
       {/* Main Status OSD */}
       {!activeChannel ? (
-        <div className="absolute inset-0 flex items-center justify-center z-0 pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center z-0 pointer-events-none prevent-select">
           <Icons.TV />
           <span className="ml-4 text-3xl font-light tracking-wide opacity-50">Select a stream</span>
         </div>
       ) : (
-        <div className="absolute top-8 right-8 z-10 flex flex-col items-end pointer-events-none drop-shadow-lg ui-layer">
-          <div className="text-3xl font-medium shadow-black drop-shadow-md">{activeChannel.name}</div>
-          <div className="text-sm uppercase tracking-widest flex items-center gap-2 mt-1 drop-shadow-md text-white/80">
+        <div className={`absolute z-10 flex flex-col items-end pointer-events-none drop-shadow-lg ui-layer ${isMobile ? 'top-6 right-6' : 'top-8 right-8'}`}>
+          <div className="text-3xl font-medium shadow-black drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{activeChannel.name}</div>
+          <div className="text-sm uppercase tracking-widest flex items-center gap-2 mt-2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] text-white/90">
             {activeChannel.countryCode && worldCountriesList.find(c => c.code === activeChannel.countryCode)?.tz && (
-               <span className="mr-2 px-2 py-0.5 bg-black/40 backdrop-blur-md rounded-full text-xs border border-white/20 shadow-sm flex items-center">
-                 <Icons.Globe className="inline w-3 h-3 mr-1.5" />
-                 Local Time: {calculateLocalTime(worldCountriesList.find(c => c.code === activeChannel.countryCode)?.tz)}
+               <span className="mr-2 px-2.5 py-1 bg-black/60 backdrop-blur-md rounded-full text-xs border border-white/10 shadow-lg flex items-center">
+                 <Icons.Globe />
+                 <span className="ml-1.5 font-medium tracking-wider">
+                   {calculateLocalTime(worldCountriesList.find(c => c.code === activeChannel.countryCode)?.tz)}
+                 </span>
                </span>
             )}
-            {playerStatus === 'PLAYING' && <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]"></span>}
-            <span className={playerStatus === 'STREAM UNAVAILABLE' ? 'text-red-400' : 'text-white/80'}>{playerStatus}</span>
+            {playerStatus === 'PLAYING' && <span className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse shadow-[0_0_10px_rgba(74,222,128,1)]"></span>}
+            <span className={`font-bold tracking-widest ${playerStatus === 'STREAM UNAVAILABLE' ? 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.8)]' : 'text-white'}`}>{playerStatus}</span>
           </div>
         </div>
       )}
@@ -1078,16 +1088,16 @@ export default function App() {
               />
             </div>
 
-            <div className="w-px h-5 bg-white/20"></div>
+            <div className={`w-px h-6 bg-white/20 mx-2 ${isMobile ? 'hidden' : 'block'}`}></div>
 
-            <button onClick={togglePiP} className="text-white hover:text-yellow-400 transition transform hover:scale-110" title="Picture-in-Picture">
+            <button onClick={togglePiP} className="text-white hover:text-yellow-400 transition transform hover:scale-110 active:scale-90" title="Picture-in-Picture">
               <Icons.PiP />
             </button>
-            <button onClick={requestCast} className="text-white hover:text-cyan-400 transition transform hover:scale-110" title="AirPlay / Cast">
+            <button onClick={requestCast} className="text-white hover:text-cyan-400 transition transform hover:scale-110 active:scale-90" title="AirPlay / Cast">
               <Icons.Cast />
             </button>
 
-            <button onClick={handleScreenshot} className="text-white hover:text-purple-400 transition transform hover:scale-110" title="Take Screenshot">
+            <button onClick={handleScreenshot} className="text-white hover:text-purple-400 transition transform hover:scale-110 active:scale-90" title="Take Screenshot">
               <Icons.Camera />
             </button>
           </div>
@@ -1215,11 +1225,11 @@ export default function App() {
         </div>
 
         {/* Channel Grid/List */}
-        <div className="flex-1 overflow-y-auto p-4 px-6 relative">
+        <div className="flex-1 overflow-y-auto p-2 md:p-4 px-4 md:px-6 relative custom-scrollbar">
           {loadingState && allChannels.length === 0 ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--text-muted)]">
-              <div className="loader-spinner mb-4"></div>
-              Synchronizing Database...
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--text-muted)] animate-in fade-in">
+              <div className="loader-spinner mb-4 border-t-white"></div>
+              <span className="tracking-widest uppercase text-[10px] font-bold">Synchronizing Database...</span>
             </div>
           ) : displayedChannels.length === 0 ? (
             <div className="text-center p-8 text-[var(--text-muted)] border border-dashed border-[rgba(255,255,255,0.1)] rounded-xl mt-4 bg-black/30">

@@ -235,6 +235,7 @@ const Icons = {
 
 const VideoPlayer = ({ channel, onStatus, setAvailableQualities, currentQuality, videoRef, setIsPlaying, dataSaver, videoFit }: any) => {
   const hlsRef = useRef(null);
+  const [indicator, setIndicator] = useState<{type: 'play'|'pause', id: number} | null>(null);
 
   useEffect(() => {
     if (!(window as any).Hls) {
@@ -332,8 +333,18 @@ const VideoPlayer = ({ channel, onStatus, setAvailableQualities, currentQuality,
   useEffect(() => {
     const vid = videoRef.current;
     if (!vid) return;
-    const handlePlay = () => { setIsPlaying(true); onStatus('PLAYING'); };
-    const handlePause = () => { setIsPlaying(false); onStatus('PAUSED'); };
+    const handlePlay = () => { 
+       setIsPlaying(true); 
+       onStatus('PLAYING'); 
+       setIndicator({type: 'play', id: Date.now()}); 
+       setTimeout(() => setIndicator(null), 600);
+    };
+    const handlePause = () => { 
+       setIsPlaying(false); 
+       onStatus('PAUSED'); 
+       setIndicator({type: 'pause', id: Date.now()}); 
+       setTimeout(() => setIndicator(null), 600);
+    };
     vid.addEventListener('play', handlePlay);
     vid.addEventListener('pause', handlePause);
     return () => {
@@ -349,17 +360,26 @@ const VideoPlayer = ({ channel, onStatus, setAvailableQualities, currentQuality,
   }, [currentQuality]);
 
   return (
-    <video
-      ref={videoRef}
-      className={`w-full h-full absolute inset-0 bg-black ${dataSaver ? 'z-[1]' : 'z-0'} ${videoFit === 'cover' ? 'object-cover' : 'object-contain'}`}
-      crossOrigin="anonymous"
-      autoPlay
-      playsInline
-      onClick={(e) => {
-        const target = e.target as HTMLVideoElement;
-        target.paused ? target.play() : target.pause()
-      }}
-    />
+    <>
+      <video
+        ref={videoRef}
+        className={`w-full h-full absolute inset-0 bg-black ${dataSaver ? 'z-[1]' : 'z-0'} ${videoFit === 'cover' ? 'object-cover' : 'object-contain'}`}
+        crossOrigin="anonymous"
+        autoPlay
+        playsInline
+        onClick={(e) => {
+          const target = e.target as HTMLVideoElement;
+          target.paused ? target.play() : target.pause()
+        }}
+      />
+      {indicator && (
+        <div key={indicator.id} className="absolute inset-0 flex items-center justify-center pointer-events-none z-[100] animate-in zoom-in slide-in-from-bottom-2 fade-in duration-300">
+          <div className="w-24 h-24 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-white scale-110 shadow-[0_0_50px_rgba(0,0,0,0.5)] opacity-0 animate-[ping_0.6s_ease-out_forwards]">
+             {indicator.type === 'play' ? <Icons.Play /> : <Icons.Pause />}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
@@ -399,6 +419,16 @@ const SearchableSelect = ({ options, value, onChange, placeholder, icon }: any) 
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const wrapperRef = useRef(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen && listRef.current) {
+      setTimeout(() => {
+        const selectedEl = listRef.current?.querySelector('.selected-option-marker');
+        if (selectedEl) selectedEl.scrollIntoView({ block: 'center' });
+      }, 10);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -441,9 +471,9 @@ const SearchableSelect = ({ options, value, onChange, placeholder, icon }: any) 
               autoFocus
             />
           </div>
-          <div className="max-h-60 overflow-y-auto p-1">
+          <div className="max-h-60 overflow-y-auto p-1 custom-scrollbar" ref={listRef}>
             <div
-              className={`px-3 py-2 cursor-pointer rounded hover:bg-white/10 ${value === '' ? 'bg-white/10 text-white' : 'text-gray-400'}`}
+              className={`px-3 py-2 cursor-pointer rounded hover:bg-white/10 ${value === '' ? 'bg-white/10 text-white selected-option-marker' : 'text-gray-400'}`}
               onClick={() => { onChange(''); setIsOpen(false); setSearch(''); }}
             >
               [ Reset Filter ]
@@ -451,7 +481,7 @@ const SearchableSelect = ({ options, value, onChange, placeholder, icon }: any) 
             {filteredOptions.map((opt, i) => (
               <div
                 key={i}
-                className={`px-3 py-2 cursor-pointer rounded hover:bg-white/10 truncate ${value === opt.value ? 'bg-white/10 text-white' : 'text-gray-300'}`}
+                className={`px-3 py-2 cursor-pointer rounded hover:bg-white/10 truncate ${value === opt.value ? 'bg-white/10 text-white selected-option-marker' : 'text-gray-300'}`}
                 onClick={() => { onChange(opt.value); setIsOpen(false); setSearch(''); }}
               >
                 {opt.label}
@@ -553,12 +583,20 @@ export default function App() {
   };
 
   useEffect(() => {
+    let lastWidth = window.innerWidth;
     const handleResize = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (mobile) setSidebarCollapsed(true);
+      const currentWidth = window.innerWidth;
+      const isMobileNow = currentWidth < 768;
+      setIsMobile(isMobileNow);
+      
+      // Only auto-collapse if the width ACTUALLY crosses the mobile threshold horizontally
+      // This prevents the mobile keyboard opening (vertically) from causing a frantic UI collapse
+      if (currentWidth !== lastWidth) {
+         if (isMobileNow && lastWidth >= 768) setSidebarCollapsed(true);
+         lastWidth = currentWidth;
+      }
     };
-    handleResize();
+    if (window.innerWidth < 768) setSidebarCollapsed(true);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -1132,10 +1170,10 @@ export default function App() {
           <div className="text-3xl font-medium shadow-black drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{activeChannel.name}</div>
           <div className="text-sm uppercase tracking-widest flex items-center gap-2 mt-2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] text-white/90">
             {activeChannel.countryCode && worldCountriesList.find(c => c.code === activeChannel.countryCode)?.tz && (
-               <span className="mr-2 px-2.5 py-1 bg-black/60 backdrop-blur-md rounded-full text-xs border border-white/10 shadow-lg flex items-center">
+               <span className="mr-2 px-2.5 py-1 bg-black/60 backdrop-blur-md rounded-full text-xs border border-white/10 shadow-lg flex items-center" title={`${activeChannel.name}'s Local Time`}>
                  <Icons.Globe />
                  <span className="ml-1.5 font-medium tracking-wider">
-                   {calculateLocalTime(worldCountriesList.find(c => c.code === activeChannel.countryCode)?.tz)}
+                   {calculateLocalTime(worldCountriesList.find(c => c.code === activeChannel.countryCode)?.tz)} (CH)
                  </span>
                </span>
             )}
@@ -1429,7 +1467,10 @@ export default function App() {
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-white/10 rounded-lg text-white"><Icons.Settings /></div>
                 <div>
-                  <h2 className="text-xl font-bold tracking-wide">Configuration</h2>
+                  <h2 className="text-xl font-bold tracking-wide flex items-center gap-3">
+                    Configuration
+                    <span className="text-[9px] bg-blue-500/20 border border-blue-500/30 text-blue-400 px-2 py-0.5 rounded tracking-widest font-mono uppercase" title="Your Auto-Detected Timezone">Your TZ: {Intl.DateTimeFormat().resolvedOptions().timeZone}</span>
+                  </h2>
                   <p className="text-[11px] text-gray-500 uppercase tracking-widest mt-0.5">Customize your StreamOS Experience</p>
                 </div>
               </div>
@@ -1528,17 +1569,17 @@ export default function App() {
                     <label className="text-sm font-bold text-white uppercase tracking-wider block">Stream Resolution (Bitrate)</label>
                     <div className="relative">
                       <select
-                        className="input-minimal w-full appearance-none cursor-pointer bg-black/50 border-white/10 py-3 pl-4 pr-10 hover:border-white/30 text-white"
+                        className={`input-minimal w-full appearance-none bg-black/50 border-white/10 py-3 pl-4 pr-10 text-white ${availableQualities.length <= 1 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-white/30'}`}
                         value={selectedQuality}
                         onChange={(e) => setSelectedQuality(Number(e.target.value))}
                         disabled={availableQualities.length <= 1}
                       >
-                        {availableQualities.length > 0
+                        {availableQualities.length > 1
                           ? availableQualities.map(q => <option key={q.id} value={q.id} className="bg-[#1a1a20] text-white">{q.label}</option>)
-                          : <option value="-1" className="bg-[#1a1a20] text-white">Auto (Adaptive Engine Active)</option>
+                          : <option value="-1" className="bg-[#1a1a20] text-gray-400">Locked / Single Source Bitrate</option>
                         }
                       </select>
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                      <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none ${availableQualities.length <= 1 ? 'text-gray-700' : 'text-gray-500'}`}>
                         <Icons.ChevronDown />
                       </div>
                     </div>

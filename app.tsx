@@ -202,21 +202,22 @@ const getCookie = (name: string, defaultValue: any = null) => {
 
 // Robust Country Decoder & Name Mapper
 const getCountryDetails = (code) => {
-  if (!code || typeof code !== 'string') return { flag: '🌐', name: 'Global / Int.' };
+  if (!code || typeof code !== 'string') return { flagCode: null, flag: '🌐', name: 'Global / Int.' };
   let cleanCode = code.trim().toUpperCase();
 
   if (cleanCode.length === 2) {
     const flag = String.fromCodePoint(cleanCode.charCodeAt(0) + 127397, cleanCode.charCodeAt(1) + 127397);
+    const flagCode = cleanCode.toLowerCase();
     try {
       // Precise Emoji conversion using Regional Indicator Symbols
       const name = new Intl.DisplayNames(['en'], { type: 'region' }).of(cleanCode);
-      return { flag, name: name || cleanCode };
+      return { flagCode, flag, name: name || cleanCode };
     } catch (e) {
-      return { flag, name: cleanCode };
+      return { flagCode, flag, name: cleanCode };
     }
   }
   // Fallback for non-standard country tags
-  return { flag: '📺', name: code.charAt(0).toUpperCase() + code.slice(1).toLowerCase() };
+  return { flagCode: null, flag: '📺', name: code.charAt(0).toUpperCase() + code.slice(1).toLowerCase() };
 };
 
 // --- COMPONENTS ---
@@ -300,8 +301,20 @@ const VideoPlayer = ({ channel, onStatus, setAvailableQualities, currentQuality,
 
         hls.on(Hls.Events.ERROR, (event: any, data: any) => {
           if (data.fatal) {
-            onStatus('STREAM UNAVAILABLE');
-            hls.destroy();
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                console.warn('Network error, trying to recover...');
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                console.warn('Media error, trying to recover...');
+                hls.recoverMediaError();
+                break;
+              default:
+                onStatus('STREAM UNAVAILABLE');
+                hls.destroy();
+                break;
+            }
           }
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -368,9 +381,10 @@ const SearchableSelect = ({ options, value, onChange, placeholder, icon }: any) 
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredOptions = options.filter(opt =>
-    opt.label.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredOptions = options.filter(opt => {
+    const term = opt.searchLabel || (typeof opt.label === 'string' ? opt.label : '');
+    return term.toLowerCase().includes(search.toLowerCase());
+  });
 
   const selectedOpt = options.find((o: any) => o.value === value);
 
@@ -434,7 +448,7 @@ export default function App() {
   const [sourceCache, setSourceCache] = useState<any>({});
   const [loadingState, setLoadingState] = useState(false);
   const [filters, setFilters] = useState(() => getCookie('streamos_filters', { type: 'all', value: '', search: '' }));
-  const [activeChannel, setActiveChannel] = useState<any>(null);
+  const [activeChannel, setActiveChannel] = useState<any>(() => getCookie('streamos_activeChannel', null));
   const [playerStatus, setPlayerStatus] = useState('STANDBY');
 
   const [isIdle, setIsIdle] = useState(false);
@@ -442,6 +456,28 @@ export default function App() {
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  const [countryMap, setCountryMap] = useState<any>({});
+  const [worldCountriesList, setWorldCountriesList] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('https://restcountries.com/v3.1/all?fields=cca2,cca3,name')
+      .then(res => res.json())
+      .then(data => {
+        const map: any = {};
+        const list: any[] = [];
+        data.forEach((c: any) => {
+          const cca2 = c.cca2.toUpperCase();
+          const name = c.name?.common;
+          if (c.cca3) map[c.cca3.toUpperCase()] = cca2;
+          if (name) map[name.toUpperCase()] = cca2;
+          list.push({ code: cca2, name: name });
+        });
+        setCountryMap(map);
+        setWorldCountriesList(list);
+      })
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -485,6 +521,7 @@ export default function App() {
   useEffect(() => { setCookie('streamos_sidebarWidth', sidebarWidth); }, [sidebarWidth]);
   useEffect(() => { setCookie('streamos_volume', volume); }, [volume]);
   useEffect(() => { setCookie('streamos_isMuted', isMuted); }, [isMuted]);
+  useEffect(() => { setCookie('streamos_activeChannel', activeChannel); }, [activeChannel]);
 
   const fetchWithFallback = async (url: string) => {
     try {
@@ -528,8 +565,12 @@ export default function App() {
               const languageMatch = line.match(/tvg-language="([^"]*)"/i);
 
               let rawCode = countryMatch ? countryMatch[1].split(/[,;]/)[0].trim().toUpperCase() : '';
-              const codeMap: any = { 'USA': 'US', 'UK': 'GB', 'CAN': 'CA', 'AUS': 'AU', 'FRA': 'FR', 'DEU': 'DE', 'ITA': 'IT', 'ESP': 'ES', 'IRN': 'IR', 'IRQ': 'IQ', 'ARE': 'AE', 'RUS': 'RU', 'CHN': 'CN', 'IND': 'IN' };
-              const countryCode = codeMap[rawCode] || rawCode;
+              if (!rawCode && categoryMatch) {
+                const groupTitle = categoryMatch[1].trim().toUpperCase();
+                if (groupTitle.length === 2 && /^[A-Z]{2}$/.test(groupTitle)) {
+                  rawCode = groupTitle;
+                }
+              }
 
               const category = categoryMatch ? categoryMatch[1].trim() : '';
               const language = languageMatch ? languageMatch[1].trim() : '';
@@ -539,7 +580,7 @@ export default function App() {
                 id: `${source.id}-${i}`,
                 sourceId: source.id,
                 name,
-                countryCode,
+                rawCode,
                 category,
                 language,
                 logo
@@ -569,8 +610,13 @@ export default function App() {
   const allChannels = useMemo(() => {
     return sources
       .filter(s => s.active && sourceCache[s.id])
-      .flatMap(s => sourceCache[s.id]);
-  }, [sources, sourceCache]);
+      .flatMap(s => sourceCache[s.id].map(c => {
+         const fallbackMap: any = { 'UK': 'GB', 'USA': 'US', 'GLOBAL': 'INT' };
+         // Dynamic mapping with fetched map
+         const finalCode = fallbackMap[c.rawCode] || countryMap[c.rawCode] || c.rawCode;
+         return { ...c, countryCode: finalCode };
+      }));
+  }, [sources, sourceCache, countryMap]);
 
   const meta = useMemo(() => {
     const uniqueCountryCodes = new Set();
@@ -585,12 +631,24 @@ export default function App() {
       if (c.sourceId) uniqueSources.add(c.sourceId);
     });
 
-    const processedCountries = Array.from(uniqueCountryCodes)
+    const baseCountries = new Set(uniqueCountryCodes);
+    worldCountriesList.forEach(wc => baseCountries.add(wc.code));
+
+    const processedCountries = Array.from(baseCountries)
       .map((code: any) => {
         const details = getCountryDetails(code);
-        return { value: code, label: `${details.flag} ${details.name}` };
+        return { 
+          value: code, 
+          searchLabel: `${details.name} ${code}`,
+          label: (
+            <div className="flex items-center gap-2">
+              {details.flagCode ? <img src={`https://flagcdn.com/w20/${details.flagCode}.png`} alt={details.name} className="w-4 h-auto rounded-[1px]" /> : <span>{details.flag}</span>}
+              <span className="truncate">{details.name}</span>
+            </div>
+          )
+        };
       })
-      .sort((a: any, b: any) => a.label.localeCompare(b.label));
+      .sort((a: any, b: any) => a.searchLabel.localeCompare(b.searchLabel));
 
     const processedCategories = Array.from(uniqueCategories)
       .filter(c => c)
@@ -877,7 +935,7 @@ export default function App() {
         setIsPlaying={setIsPlaying}
       />
 
-      <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/30 to-transparent pointer-events-none z-0 ui-layer"></div>
+      <div className={`absolute inset-0 bg-gradient-to-r from-black/90 via-black/30 to-transparent pointer-events-none z-0 ui-layer transition-opacity duration-300 ${sidebarCollapsed ? 'opacity-0' : 'opacity-100'}`}></div>
 
       {/* Main Status OSD */}
       {!activeChannel ? (
@@ -1019,10 +1077,19 @@ export default function App() {
             <input
               type="text"
               placeholder="Search by name, category, or country..."
-              className="input-minimal w-full pl-10 bg-white/5 border-transparent focus:bg-white/10"
+              className="input-minimal w-full pl-10 pr-8 bg-white/5 border-transparent focus:bg-white/10"
               value={filters.search}
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
             />
+            {filters.search && (
+              <button 
+                onClick={() => setFilters({ ...filters, search: '' })}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                title="Clear Search"
+              >
+                <Icons.Close />
+              </button>
+            )}
           </div>
 
           <div className="flex flex-col gap-4">
@@ -1095,7 +1162,16 @@ export default function App() {
                     {/* Compact Info */}
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-[13px] truncate leading-tight mb-1 text-white/90 flex justify-between items-center pr-2">
-                        <span className="truncate">{channel.name}</span>
+                        <span className="truncate flex items-center gap-2">
+                          {activeChannel?.id === channel.id && playerStatus === 'PLAYING' && (
+                            <span className="flex items-end gap-[2px] h-3 w-3 shrink-0">
+                              <span className="w-[2px] bg-green-400 animate-[bounce_0.8s_infinite] h-full"></span>
+                              <span className="w-[2px] bg-green-400 animate-[bounce_1.2s_infinite] h-2/3"></span>
+                              <span className="w-[2px] bg-green-400 animate-[bounce_1s_infinite] h-4/5"></span>
+                            </span>
+                          )}
+                          {channel.name}
+                        </span>
                         <button 
                           onClick={(e) => pingHealth(e, channel)}
                           className={`shrink-0 ml-2 rounded flex items-center justify-center transition
@@ -1109,7 +1185,11 @@ export default function App() {
                         </button>
                       </div>
                       <div className="text-[10px] text-[var(--text-muted)] flex items-center gap-1.5 truncate uppercase tracking-wide">
-                        <span title={countryDetails.name} className="text-[12px]">{countryDetails.flag}</span>
+                        {countryDetails.flagCode ? (
+                          <img src={`https://flagcdn.com/w20/${countryDetails.flagCode}.png`} alt={countryDetails.name} className="w-3.5 h-auto inline-block relative -top-[1px] opacity-80" />
+                        ) : (
+                          <span title={countryDetails.name} className="text-[12px]">{countryDetails.flag}</span>
+                        )}
                         <span className="truncate max-w-[80px]">{countryDetails.name}</span>
                         {channel.category && (
                           <>
